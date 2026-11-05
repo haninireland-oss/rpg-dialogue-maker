@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素对话框 · RPG Dialog Maker</title>
+<style>
+  @font-face {
+    font-family: 'PixelCN';
+    src: url('fonts/fusion-pixel-12px-sc.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  :root {
+    --gold: #ffd54a;
+    --white: #f8f8f8;
+    --ink: #05051a;
+    --win-top: #2e40bc;
+    --win-bottom: #131e6a;
+    --field-bg: rgba(4, 6, 32, 0.55);
+    --field-border: #7a86d8;
+    --label: #b8c4ff;
+    --muted: #7a84c8;
+    --title-bg: #0a0f3c;
+    --title-fg: #ffd54a;
+    --dash: #8b96e0;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background-color: #07071a;
+    background-image:
+      radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1.6px),
+      radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1.6px);
+    background-size: 230px 190px, 130px 110px;
+    background-position: 0 0, 65px 55px;
+    color: var(--white);
+    font-family: 'PixelCN', 'Microsoft YaHei', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 30px 20px 44px;
+  }
+
+  /* ---------- JRPG 菜单窗口 ---------- */
+  .window {
+    position: relative;
+    background: linear-gradient(180deg, var(--win-top), var(--win-bottom));
+    border: 3px solid var(--white);
+    border-radius: 10px;
+    box-shadow: 0 0 0 3px var(--ink), 0 6px 0 3px rgba(0, 0, 0, 0.35);
+    padding: 22px 16px 16px;
+  }
+  .win-title {
+    position: absolute;
+    top: -14px;
+    left: 14px;
+    background: var(--title-bg);
+    border: 2px solid var(--white);
+    border-radius: 7px;
+    box-shadow: 0 0 0 2px var(--ink);
+    padding: 3px 12px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--title-fg);
+  }
+
+  header.banner {
+    padding: 16px 20px 14px;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px 24px;
+    flex-wrap: wrap;
+  }
+  .banner-theme { flex: 0 0 210px; }
+  .banner-theme label {
+    display: block;
+    font-size: 12px;
+    color: var(--label);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+  header.banner h1 {
+    margin: 0 0 4px;
+    font-size: 24px;
+    letter-spacing: 2px;
+    color: var(--white);
+    text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
+  }
+  header.banner h1 .deco { color: var(--gold); }
+  header.banner h1 .cursor { color: var(--gold); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  header.banner p { margin: 0; font-size: 13px; color: var(--label); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 370px 1fr;
+    gap: 26px;
+    align-items: start;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .col { display: flex; flex-direction: column; gap: 26px; }
+
+  /* ---------- 字段 ---------- */
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 2px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--label);
+    margin-bottom: 6px;
+    letter-spacing: 2px;
+  }
+  .field label::before { content: '▶ '; color: transparent; }
+  .field:focus-within label::before { color: var(--gold); animation: blink 0.8s steps(1) infinite; }
+
+  input[type="text"], textarea {
+    width: 100%;
+    background: var(--field-bg);
+    border: 2px solid var(--field-border);
+    border-radius: 4px;
+    color: var(--white);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 10px;
+    outline: none;
+  }
+  input[type="text"]:focus, textarea:focus { border-color: var(--gold); }
+  textarea { resize: vertical; min-height: 96px; line-height: 1.7; }
+
+  /* ---------- ◀ ▶ 循环选择器 ---------- */
+  .cycler {
+    display: flex;
+    align-items: center;
+    background: var(--field-bg);
+    border: 2px solid var(--field-border);
+    border-radius: 4px;
+    padding: 3px 4px;
+  }
+  .cyc-btn {
+    background: none;
+    border: none;
+    color: var(--gold);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 2px 8px;
+    cursor: pointer;
+  }
+  .cyc-btn:hover { color: var(--white); text-shadow: 0 0 6px var(--gold); }
+  .cyc-btn:active { transform: translateY(1px); }
+  .cyc-label {
+    flex: 1;
+    text-align: center;
+    font-size: 13px;
+    color: var(--white);
+    letter-spacing: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  /* ---------- 上传区 ---------- */
+  #drop-zone {
+    border: 2px dashed var(--dash);
+    border-radius: 6px;
+    background: rgba(4, 6, 32, 0.35);
+    padding: 20px 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop-zone:hover, #drop-zone.dragover {
+    border-color: var(--gold);
+    background: rgba(255, 213, 74, 0.08);
+  }
+  #drop-zone .big { font-size: 15px; margin-bottom: 6px; }
+  #drop-zone .hint { font-size: 12px; color: var(--label); line-height: 1.8; }
+  #drop-zone .filename { font-size: 12px; color: var(--gold); margin-top: 6px; word-break: break-all; }
+
+  #sample-btn {
+    margin-top: 10px;
+    background: none;
+    border: none;
+    color: var(--label);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  #sample-btn:hover { color: var(--gold); }
+
+  .row { display: flex; gap: 10px; }
+  .row .field { flex: 1; min-width: 0; }
+
+  /* ---------- 滑条 ---------- */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 10px;
+    background: var(--field-bg);
+    border: 2px solid var(--field-border);
+    border-radius: 4px;
+    outline: none;
+    padding: 0;
+    margin: 6px 0 0;
+    cursor: pointer;
+  }
+  input[type="range"]:focus { border-color: var(--gold); }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    background: var(--gold);
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    background: var(--gold);
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+  }
+  .slider-ends {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--label);
+    margin-top: 4px;
+  }
+
+  /* ---------- 指令菜单项 ---------- */
+  .command {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 16px;
+    letter-spacing: 3px;
+    color: var(--white);
+    text-align: left;
+    padding: 6px 10px 6px 32px;
+    position: relative;
+    cursor: pointer;
+  }
+  .command::before {
+    content: '▶';
+    position: absolute;
+    left: 8px;
+    color: var(--gold);
+    opacity: 0;
+  }
+  .command:hover:not(:disabled), .command:focus-visible:not(:disabled) { color: var(--gold); }
+  .command:hover:not(:disabled)::before, .command:focus-visible:not(:disabled)::before {
+    opacity: 1;
+    animation: blink 0.8s steps(1) infinite;
+  }
+  .command:active:not(:disabled) { transform: translateY(2px); }
+  .command:disabled { color: var(--muted); cursor: not-allowed; }
+
+  /* ---------- 文字特效按钮 ---------- */
+  .fx-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+  .fx-btn {
+    background: var(--field-bg);
+    border: 2px solid var(--field-border);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 2px 9px;
+    color: var(--white);
+    cursor: pointer;
+  }
+  .fx-btn:hover { border-color: var(--gold); }
+  .fx-gold, .fx-rainbow {
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .fx-gold { background-image: linear-gradient(180deg, #fff6c0, #ffe066 35%, #ffb818 60%, #c07808 85%, #ffd54a); }
+  .fx-rainbow { background-image: linear-gradient(90deg, #ff5d5d, #ffa64a, #ffe14a, #7ee05a, #54d8ff, #d07aff); }
+  .fx-red { color: #ef5350; }
+  .fx-blue { color: #54b4ff; }
+  .fx-green { color: #6ee76e; }
+  .fx-bold { text-shadow: 1px 0 0 currentColor; }
+  .fx-hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.7; }
+
+  /* ---------- 预览 ---------- */
+  .preview-window { min-height: 300px; }
+  #empty-hint {
+    border: 2px dashed var(--dash);
+    border-radius: 6px;
+    color: var(--label);
+    text-align: center;
+    padding: 90px 20px;
+    font-size: 14px;
+    line-height: 2;
+  }
+  #preview-canvas {
+    display: none;
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    box-shadow: 0 0 0 2px var(--ink), 0 8px 24px rgba(0, 0, 0, 0.55);
+  }
+  #size-caption { font-size: 12px; color: var(--label); margin-top: 12px; display: none; }
+
+  footer {
+    margin-top: 30px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.9;
+    text-align: center;
+  }
+  footer a { color: var(--muted); }
+
+  /* ---------- 实例画廊 ---------- */
+  .gallery-window { margin-top: 26px; padding: 24px 16px 16px; }
+  .gallery-toggle {
+    position: absolute;
+    top: -14px;
+    right: 14px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--title-bg);
+    border: 2px solid var(--white);
+    border-radius: 7px;
+    box-shadow: 0 0 0 2px var(--ink);
+    color: var(--title-fg);
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 2px;
+    padding: 3px 10px;
+  }
+  .gallery-toggle:hover { border-color: var(--gold); }
+  .tg-arrow { display: inline-block; font-size: 10px; transition: transform .25s; }
+  .gallery-window.collapsed .tg-arrow { transform: rotate(-90deg); }
+
+  .gallery-collapse {
+    display: grid;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition: grid-template-rows .28s ease, opacity .28s ease;
+  }
+  .gallery-window.collapsed .gallery-collapse { grid-template-rows: 0fr; opacity: 0; }
+  .gallery-inner { min-height: 0; overflow: hidden; }
+
+  .gallery-grid { columns: 176px; column-gap: 12px; padding-top: 4px; }
+  .gallery-card {
+    display: block;
+    width: 100%;
+    break-inside: avoid;
+    margin: 0 0 12px;
+    padding: 3px 3px 0;
+    background: var(--field-bg);
+    border: 2px solid var(--field-border);
+    border-radius: 5px;
+    font-family: inherit;
+    text-align: left;
+    transition: border-color .15s, transform .15s;
+  }
+  .gallery-card:hover, .gallery-card:focus-visible {
+    border-color: var(--gold);
+    transform: translateY(-2px);
+    outline: none;
+  }
+  .gallery-card img { display: block; width: 100%; height: auto; border-radius: 2px; }
+  .gallery-card .g-name {
+    display: block;
+    padding: 4px 2px 5px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--label);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .gallery-card:hover .g-name { color: var(--gold); }
+
+  /* ---------- 大图查看 ---------- */
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .lightbox[hidden] { display: none; }
+  .lb-backdrop { position: absolute; inset: 0; background: rgba(3, 4, 16, 0.88); }
+  .lb-body {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-width: min(94vw, 1100px);
+    max-height: 92vh;
+    background: var(--title-bg);
+    border: 3px solid var(--white);
+    border-radius: 8px;
+    box-shadow: 0 0 0 3px var(--ink), 0 18px 50px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+  }
+  .lb-body img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(92vh - 48px);
+    object-fit: contain;
+    background: #05051a;
+  }
+  .lb-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    background: var(--title-bg);
+    border-top: 2px solid var(--white);
+  }
+  .lb-name { flex: 1; font-size: 12px; letter-spacing: 2px; color: var(--title-fg); }
+  .lb-count { font-size: 12px; letter-spacing: 1px; color: var(--label); }
+  .lb-btn {
+    padding: 3px 9px;
+    background: var(--field-bg);
+    border: 2px solid var(--field-border);
+    border-radius: 4px;
+    color: var(--gold);
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .lb-btn:hover { border-color: var(--gold); color: var(--white); }
+  .lb-close { color: var(--white); }
+  body.lb-open { overflow: hidden; }
+
+  @media (max-width: 520px) {
+    .gallery-grid { columns: 132px; column-gap: 10px; }
+    .lb-bar { gap: 6px; padding: 6px 8px; }
+  }
+
+  /* ---------- 界面主题 ----------
+     掌机绿：GB 液晶四阶绿 + 像素网格；勇者黑：DQ 纯黑白；SFC 淡紫：超任浅色系 */
+  body[data-theme="gb"] {
+    --gold: #0f380f;
+    --white: #0f380f;
+    --ink: #306230;
+    --win-top: #8bac0f;
+    --win-bottom: #8bac0f;
+    --field-bg: rgba(15, 56, 15, 0.12);
+    --field-border: #306230;
+    --label: #1f4c14;
+    --muted: #3c6420;
+    --title-bg: #0f380f;
+    --title-fg: #9bbc0f;
+    --dash: #306230;
+    background-color: #9bbc0f;
+    background-image:
+      linear-gradient(rgba(15, 56, 15, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 56, 15, 0.08) 1px, transparent 1px);
+    background-size: 8px 8px;
+    background-position: 0 0;
+  }
+  body[data-theme="dq"] {
+    --gold: #ffffff;
+    --white: #f8f8f8;
+    --ink: #000000;
+    --win-top: #060606;
+    --win-bottom: #060606;
+    --field-bg: rgba(255, 255, 255, 0.07);
+    --field-border: #6a6a6a;
+    --label: #b8b8b8;
+    --muted: #8a8a8a;
+    --title-bg: #000000;
+    --title-fg: #ffffff;
+    --dash: #6a6a6a;
+    background-color: #000000;
+    background-image:
+      radial-gradient(circle, rgba(255, 255, 255, 0.4) 1px, transparent 1.6px),
+      radial-gradient(circle, rgba(255, 255, 255, 0.18) 1px, transparent 1.6px);
+    background-size: 260px 220px, 150px 130px;
+    background-position: 0 0, 75px 65px;
+  }
+  body[data-theme="sfc"] {
+    --gold: #6a48c8;
+    --white: #3a3452;
+    --ink: #8a84a4;
+    --win-top: #f2f0fa;
+    --win-bottom: #dcd8ec;
+    --field-bg: rgba(74, 64, 102, 0.08);
+    --field-border: #9a94b8;
+    --label: #5a5478;
+    --muted: #7a7494;
+    --title-bg: #4a4066;
+    --title-fg: #f2f0fa;
+    --dash: #9a94b8;
+    background-color: #c4c0d0;
+    background-image:
+      linear-gradient(45deg, rgba(90, 84, 120, 0.06) 25%, transparent 25%, transparent 75%, rgba(90, 84, 120, 0.06) 75%),
+      linear-gradient(45deg, rgba(90, 84, 120, 0.06) 25%, transparent 25%, transparent 75%, rgba(90, 84, 120, 0.06) 75%);
+    background-size: 24px 24px;
+    background-position: 0 0, 12px 12px;
+  }
+
+  /* ---------- 像素光标：默认小剑，可点元素白手套 ---------- */
+  body {
+    cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAjklEQVR42mMQEZH7jw0z0AsMGgd8+PADjOnuoEHjAHSHzFpwAIxp7pABd8BoSIyGxGhI0MohVCvQBtwB5DoEhne0cYPx0HcAqQ75f9ULjKmeWAfcAYQSGc0tHrQOgFk8LcEKjLOc1MCYblEwYA5Az2YwTHOHDBoHEMK4HDL0HUBuIh05Dhh0Xb8Bc8CgBwDDMpaHEOJNUwAAAABJRU5ErkJggg==') 2 2, default;
+  }
+  a, button, #drop-zone, .cyc-btn, .command, #sample-btn, .fx-btn, input[type="range"],
+  .gallery-card, .gallery-toggle, .lb-btn {
+    cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAiklEQVR42u3WMQrAMAgFUA+Rufc/SofeoddwS2khQwOittpqSOAPcclDCQjAnFKWegYRb2l18D7hAOu2X5mACWh1acYD9N+SymvIZwCuhRRAemchYQBU656OQPx9wwF6iPbBcQBWyQPwgsQHeI8iH8AakgfgNQr1XhAGYAVRb0S/A6xHkR9glXCAA4bH6k7vqFMpAAAAAElFTkSuQmCC') 11 1, pointer;
+  }
+</style>
+</head>
+<body data-theme="crystal">
+<div class="wrap">
+  <header class="window banner">
+    <div class="banner-text">
+      <h1><span class="deco">◆</span> 像素对话框<span class="cursor">_</span></h1>
+    </div>
+    <div class="banner-theme">
+      <label>界面风格</label>
+      <div class="cycler" data-for="ui-theme-select">
+        <button type="button" class="cyc-btn" data-dir="-1">◀</button>
+        <span class="cyc-label"></span>
+        <button type="button" class="cyc-btn" data-dir="1">▶</button>
+      </div>
+      <select id="ui-theme-select" hidden>
+        <option value="crystal" selected>水晶蓝</option>
+        <option value="gb">掌机绿</option>
+        <option value="dq">勇者黑</option>
+        <option value="sfc">SFC 淡紫</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="col">
+      <section class="window">
+        <div class="win-title">图 像</div>
+        <div id="drop-zone">
+          <div class="big">点击或拖拽图片到这里</div>
+          <div class="hint">支持 JPG / PNG / WebP / GIF<br>也可以直接 Ctrl+V 粘贴图片</div>
+          <div class="filename" id="filename"></div>
+          <button id="sample-btn" type="button">使用示例图 →</button>
+        </div>
+        <input type="file" id="file-input" accept="image/*" hidden>
+      </section>
+
+      <section class="window">
+        <div class="win-title">台 词</div>
+        <div class="field">
+          <label for="name-input">角色名（可选）</label>
+          <input type="text" id="name-input" placeholder="例如：村长" maxlength="20">
+        </div>
+        <div class="field">
+          <label for="text-input">对话内容</label>
+          <div class="fx-bar">
+            <button type="button" class="fx-btn" data-fx="金"><span class="fx-gold">金</span></button>
+            <button type="button" class="fx-btn" data-fx="虹"><span class="fx-rainbow">虹</span></button>
+            <button type="button" class="fx-btn" data-fx="红"><span class="fx-red">红</span></button>
+            <button type="button" class="fx-btn" data-fx="蓝"><span class="fx-blue">蓝</span></button>
+            <button type="button" class="fx-btn" data-fx="绿"><span class="fx-green">绿</span></button>
+            <button type="button" class="fx-btn" data-fx="粗"><span class="fx-bold">粗</span></button>
+          </div>
+          <textarea id="text-input" rows="5">勇者啊，欢迎来到这个世界！
+集齐[金粗:三件神器]，穿过[虹:彩虹之门]，
+去打倒北方的[红:魔王]吧！</textarea>
+          <div class="fx-hint">选中文字点按钮加效果，连点可叠加，再点同款取消：[金粗:神器]</div>
+        </div>
+      </section>
+
+      <section class="window">
+        <div class="win-title">设 定</div>
+        <div class="row">
+          <div class="field">
+            <label>对话框样式</label>
+            <div class="cycler" data-for="style-select">
+              <button type="button" class="cyc-btn" data-dir="-1">◀</button>
+              <span class="cyc-label"></span>
+              <button type="button" class="cyc-btn" data-dir="1">▶</button>
+            </div>
+            <select id="style-select" hidden>
+              <option value="dark" selected>经典黑</option>
+              <option value="blue">水晶蓝</option>
+              <option value="light">简约白</option>
+              <option value="gb">掌机绿</option>
+              <option value="term">复古终端</option>
+              <option value="scroll">羊皮卷轴</option>
+              <option value="blood">血月</option>
+              <option value="pink">樱花</option>
+              <option value="metal">星舰</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>文字大小</label>
+            <div class="cycler" data-for="size-select">
+              <button type="button" class="cyc-btn" data-dir="-1">◀</button>
+              <span class="cyc-label"></span>
+              <button type="button" class="cyc-btn" data-dir="1">▶</button>
+            </div>
+            <select id="size-select" hidden>
+              <option value="small">小</option>
+              <option value="medium" selected>中</option>
+              <option value="large">大</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>对话框位置</label>
+          <div class="cycler" data-for="pos-select">
+            <button type="button" class="cyc-btn" data-dir="-1">◀</button>
+            <span class="cyc-label"></span>
+            <button type="button" class="cyc-btn" data-dir="1">▶</button>
+          </div>
+          <select id="pos-select" hidden>
+            <option value="overlay" selected>覆盖在原图上</option>
+            <option value="below">在图片下方（不遮挡原图）</option>
+            <option value="custom">自定义（用下方滑条微调）</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="pos-slider">垂直位置 · 向下偏移 <span id="pos-value">0%</span></label>
+          <input type="range" id="pos-slider" min="0" max="100" value="0">
+          <div class="slider-ends"><span>▲ 覆盖原图</span><span>图片下方 ▼</span></div>
+        </div>
+      </section>
+
+      <section class="window">
+        <div class="win-title">命 令</div>
+        <button id="download-btn" class="command" disabled>保存图片（PNG）</button>
+      </section>
+    </div>
+
+    <section class="window preview-window">
+      <div class="win-title">预 览</div>
+      <div id="empty-hint">尚未选择图片</div>
+      <canvas id="preview-canvas"></canvas>
+      <div id="size-caption"></div>
+    </section>
+  </div>
+
+  <section class="window gallery-window" id="gallery-window">
+    <div class="win-title">实 例</div>
+    <button type="button" class="gallery-toggle" id="gallery-toggle" aria-expanded="true" aria-controls="gallery-body">
+      <span class="tg-label">收起</span>
+      <span class="tg-arrow" aria-hidden="true">▼</span>
+    </button>
+    <div class="gallery-collapse" id="gallery-body">
+      <div class="gallery-inner">
+        <div class="gallery-grid" id="gallery-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    像素字体：<a href="https://github.com/TakWolf/fusion-pixel-font" target="_blank" rel="noopener">缝合像素字体 Fusion Pixel</a>（SIL OFL 1.1）
+  </footer>
+</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <div class="lb-backdrop" id="lb-backdrop"></div>
+  <div class="lb-body" role="dialog" aria-modal="true" aria-label="示例大图">
+    <img id="lb-img" alt="">
+    <div class="lb-bar">
+      <span class="lb-name" id="lb-name"></span>
+      <span class="lb-count" id="lb-count"></span>
+      <button type="button" class="lb-btn" id="lb-prev" aria-label="上一张">◀</button>
+      <button type="button" class="lb-btn" id="lb-next" aria-label="下一张">▶</button>
+      <button type="button" class="lb-btn lb-close" id="lb-close" aria-label="关闭">✕</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const fileInput   = document.getElementById('file-input');
+const dropZone    = document.getElementById('drop-zone');
+const sampleBtn   = document.getElementById('sample-btn');
+const filenameEl  = document.getElementById('filename');
+const nameInput   = document.getElementById('name-input');
+const textInput   = document.getElementById('text-input');
+const styleSelect = document.getElementById('style-select');
+const sizeSelect  = document.getElementById('size-select');
+const posSelect   = document.getElementById('pos-select');
+const posSlider   = document.getElementById('pos-slider');
+const posValue    = document.getElementById('pos-value');
+const downloadBtn = document.getElementById('download-btn');
+const canvas      = document.getElementById('preview-canvas');
+const emptyHint   = document.getElementById('empty-hint');
+const sizeCaption = document.getElementById('size-caption');
+
+const FONT_FAMILY = 'PixelCN';
+const state = { img: null };
+
+/* ---------- 对话框配色 ----------
+   可选字段：bgBottom 渐变下色 / innerLine 内衬线 / pattern:'scanline' 扫描线
+             shadow 文字投影色 / indicator 指示符配色（默认同正文） */
+const STYLES = {
+  dark:   { bg: 'rgba(16,16,26,0.92)', bgBottom: null,      border: '#f8f8f8', outline: '#10101a', text: '#ffffff', name: '#ffd54a' },
+  blue:   { bg: '#4060c8',             bgBottom: '#182468', border: '#f8f8f8', outline: '#101040', text: '#ffffff', name: '#ffd54a', innerLine: 'rgba(255,255,255,0.28)' },
+  light:  { bg: '#f8f8f0',             bgBottom: null,      border: '#484850', outline: '#f8f8f0', text: '#30303a', name: '#c03028', innerLine: '#c8c8c0' },
+  gb:     { bg: '#9bbc0f',             bgBottom: null,      border: '#0f380f', outline: '#9bbc0f', text: '#0f380f', name: '#306230', innerLine: '#306230' },
+  term:   { bg: 'rgba(2,14,6,0.95)',   bgBottom: null,      border: '#2ce66a', outline: '#04140a', text: '#40ff80', name: '#b0ffc8', pattern: 'scanline', indicator: '#40ff80' },
+  scroll: { bg: '#ecdcb0',             bgBottom: '#d8c088', border: '#7a5828', outline: '#3a2a10', text: '#46320f', name: '#a03818', innerLine: '#c0a468' },
+  blood:  { bg: 'rgba(12,2,4,0.93)',   bgBottom: null,      border: '#8a1420', outline: '#000000', text: '#e8dcd0', name: '#ff5040', shadow: '#40060c', indicator: '#ff5040' },
+  pink:   { bg: '#fff4f7',             bgBottom: null,      border: '#f080a8', outline: '#ffffff', text: '#8a4060', name: '#e84888', innerLine: '#ffc8da' },
+  metal:  { bg: '#3c444e',             bgBottom: '#14181e', border: '#c8d2dc', outline: '#04070a', text: '#e8f2f8', name: '#6ae0ff', innerLine: '#5a6672', indicator: '#6ae0ff' },
+};
+
+/* ---------- 文本分词与自动换行（中文按字、英文按词） ---------- */
+const CJK = '\\u2E80-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEF\\u3000-\\u303F';
+const TOKEN_RE = new RegExp('[' + CJK + ']|\\s+|[^\\s' + CJK + ']+', 'g');
+
+/* ---------- 文字特效标记：[金粗:文字]，样式字符可叠加 ---------- */
+const FX_CHARS = '金虹红蓝绿粗';
+const FX_RE = new RegExp('\\[([' + FX_CHARS + ']+):([^\\[\\]\\n]*)\\]', 'g');
+
+// 把一段文本解析成 [{text, styles}] 片段
+function parseRich(text) {
+  const segs = [];
+  let last = 0, m;
+  FX_RE.lastIndex = 0;
+  while ((m = FX_RE.exec(text))) {
+    if (m.index > last) segs.push({ text: text.slice(last, m.index), styles: [] });
+    if (m[2]) segs.push({ text: m[2], styles: [...new Set(m[1])] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) segs.push({ text: text.slice(last), styles: [] });
+  return segs;
+}
+
+// 带样式的自动换行：返回行数组，每行是 {text, styles} 段的数组
+function wrapRich(ctx, text, maxW) {
+  const lines = [];
+  for (const para of text.split('\n')) {
+    const tokens = [];
+    for (const seg of parseRich(para)) {
+      for (const part of (seg.text.match(TOKEN_RE) || [])) {
+        tokens.push({ text: part, styles: seg.styles });
+      }
+    }
+    let line = [], lineW = 0;
+    const pushLine = () => {
+      while (line.length && line[line.length - 1].text.trim() === '') line.pop();
+      lines.push(line);
+      line = []; lineW = 0;
+    };
+    // 相邻同样式的字符合并成一段，彩虹等逐字效果才能拿到正确的字符序号
+    const pushTok = (t) => {
+      const prev = line[line.length - 1];
+      if (prev && prev.styles === t.styles) prev.text += t.text;
+      else line.push({ text: t.text, styles: t.styles });
+    };
+    for (let tok of tokens) {
+      let w = ctx.measureText(tok.text).width;
+      if (line.length && lineW + w > maxW) {
+        pushLine();
+        if (tok.text.trim() === '') continue; // 行首空白丢弃
+      }
+      // 单个超长词：硬切
+      while (w > maxW && tok.text.length > 1) {
+        let cut = tok.text.length - 1;
+        while (cut > 1 && ctx.measureText(tok.text.slice(0, cut)).width > maxW) cut--;
+        pushTok({ text: tok.text.slice(0, cut), styles: tok.styles });
+        pushLine();
+        tok = { text: tok.text.slice(cut), styles: tok.styles };
+        w = ctx.measureText(tok.text).width;
+      }
+      pushTok(tok);
+      lineW += w;
+    }
+    pushLine();
+  }
+  return lines;
+}
+
+/* ---------- 像素风圆角矩形（只用 fillRect，避免抗锯齿） ----------
+   各矩形互不重叠：半透明颜色叠涂会产生深浅不一的色带 */
+function pixelRect(ctx, x, y, w, h) {
+  ctx.fillRect(x + 2, y, w - 4, h);         // 中间整列
+  ctx.fillRect(x, y + 2, 2, h - 4);         // 左边条
+  ctx.fillRect(x + w - 2, y + 2, 2, h - 4); // 右边条
+  ctx.fillRect(x + 1, y + 1, 1, 1);         // 四个圆角过渡像素
+  ctx.fillRect(x + w - 2, y + 1, 1, 1);
+  ctx.fillRect(x + 1, y + h - 2, 1, 1);
+  ctx.fillRect(x + w - 2, y + h - 2, 1, 1);
+}
+
+function drawBox(ctx, x, y, w, h, st) {
+  ctx.fillStyle = st.outline;
+  pixelRect(ctx, x - 1, y - 1, w + 2, h + 2);
+  ctx.fillStyle = st.border;
+  pixelRect(ctx, x, y, w, h);
+  // 先挖空内部，半透明底色才能真正透出下面的原图
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = '#000';
+  pixelRect(ctx, x + 2, y + 2, w - 4, h - 4);
+  ctx.restore();
+  if (st.bgBottom) {
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, st.bg);
+    g.addColorStop(1, st.bgBottom);
+    ctx.fillStyle = g;
+  } else {
+    ctx.fillStyle = st.bg;
+  }
+  pixelRect(ctx, x + 2, y + 2, w - 4, h - 4);
+  // CRT 扫描线（隔行压暗）
+  if (st.pattern === 'scanline') {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    for (let sy = y + 3; sy < y + h - 3; sy += 2) ctx.fillRect(x + 2, sy, w - 4, 1);
+  }
+  // 内衬线（边框内侧 1px 装饰线）
+  if (st.innerLine) {
+    ctx.fillStyle = st.innerLine;
+    ctx.fillRect(x + 4, y + 3, w - 8, 1);
+    ctx.fillRect(x + 4, y + h - 4, w - 8, 1);
+    ctx.fillRect(x + 3, y + 4, 1, h - 8);
+    ctx.fillRect(x + w - 4, y + 4, 1, h - 8);
+  }
+}
+
+/* ---------- 特效文字绘制 ---------- */
+const RAINBOW = ['#ff5d5d', '#ffa64a', '#ffe14a', '#7ee05a', '#54d8ff', '#7a8cff', '#d07aff'];
+const FX_COLORS = { '红': '#ef5350', '蓝': '#54b4ff', '绿': '#6ee76e' };
+
+// 金色金属质感：亮金 → 深琥珀 → 反光底边 的竖向渐变
+function goldGradient(ctx, y) {
+  const g = ctx.createLinearGradient(0, y, 0, y + 12);
+  g.addColorStop(0, '#fff6c0');
+  g.addColorStop(0.3, '#ffe066');
+  g.addColorStop(0.55, '#ffb818');
+  g.addColorStop(0.8, '#c07808');
+  g.addColorStop(1, '#ffd54a');
+  return g;
+}
+
+// 绘制一个样式段，返回占用宽度；粗体 = 经典位图双重描印（原位 + 右移 1px）
+function drawRun(ctx, run, x, y, st) {
+  const bold = run.styles.includes('粗');
+  const put = (s, px) => {
+    if (st.shadow) {
+      const keep = ctx.fillStyle;
+      ctx.fillStyle = st.shadow;
+      ctx.fillText(s, px + 1, y + 1);
+      if (bold) ctx.fillText(s, px + 2, y + 1);
+      ctx.fillStyle = keep;
+    }
+    ctx.fillText(s, px, y);
+    if (bold) ctx.fillText(s, px + 1, y);
+  };
+  if (run.styles.includes('虹')) {
+    let cx = x;
+    [...run.text].forEach((ch, i) => {
+      ctx.fillStyle = RAINBOW[i % RAINBOW.length];
+      put(ch, cx);
+      cx += ctx.measureText(ch).width;
+    });
+    return cx - x;
+  }
+  if (run.styles.includes('金')) ctx.fillStyle = goldGradient(ctx, y);
+  else ctx.fillStyle = FX_COLORS[run.styles.find(c => FX_COLORS[c])] || st.text;
+  put(run.text, x);
+  return ctx.measureText(run.text).width;
+}
+
+/* ▼ 继续指示符（逐行 fillRect 画出像素三角形） */
+function drawIndicator(ctx, x, y, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, 7, 1);
+  ctx.fillRect(x + 1, y + 1, 5, 1);
+  ctx.fillRect(x + 2, y + 2, 3, 1);
+  ctx.fillRect(x + 3, y + 3, 1, 1);
+}
+
+/* ---------- 在低分辨率离屏画布上绘制对话框，再最近邻放大 ---------- */
+function buildOverlay(W, H) {
+  const st = STYLES[styleSelect.value];
+  const text = textInput.value.replace(/\r/g, '').trimEnd();
+  const name = nameInput.value.trim();
+  if (!text && !name) return null;
+
+  // 三档倍率严格递增，避免四舍五入后“中”和“大”撞到同一档
+  const sSmall  = Math.max(1, Math.round(W / 480));
+  const sMedium = Math.max(sSmall + 1, Math.round(W / 360));
+  const sLarge  = Math.max(sMedium + 1, Math.round(W / 260));
+  let scale = { small: sSmall, medium: sMedium, large: sLarge }[sizeSelect.value];
+
+  const meas = document.createElement('canvas').getContext('2d');
+  const MARGIN = 6, PAD = 8, LINE_H = 16, FS = 12;
+  const NAME_H = 22;
+
+  while (true) {
+    const lw = Math.max(60, Math.floor(W / scale));
+    const boxW = lw - MARGIN * 2;
+    meas.font = FS + 'px ' + FONT_FAMILY + ', sans-serif';
+    const lines = text ? wrapRich(meas, text, boxW - PAD * 2) : [[]];
+    const textH = lines.length * LINE_H - (LINE_H - FS);
+    const boxH = textH + PAD * 2;
+    const nameSpace = name ? NAME_H - 2 : 0;
+    const totalH = nameSpace + boxH + MARGIN;
+
+    // 只按“实际覆盖在图片上的高度”判断是否降档，移到图片下方的部分不算遮挡
+    const coverH = totalH * scale * (1 - posSlider.value / 100);
+    if (scale > 1 && coverH > H * 0.8) { scale--; continue; }
+
+    const off = document.createElement('canvas');
+    off.width = lw;
+    off.height = totalH;
+    const ctx = off.getContext('2d');
+    ctx.font = FS + 'px ' + FONT_FAMILY + ', sans-serif';
+    ctx.textBaseline = 'top';
+
+    const boxX = MARGIN;
+    const boxY = nameSpace;
+    drawBox(ctx, boxX, boxY, boxW, boxH, st);
+
+    // 台词（按样式分段绘制）
+    lines.forEach((runs, i) => {
+      let tx = boxX + PAD;
+      const ty = boxY + PAD + i * LINE_H;
+      for (const run of runs) tx += drawRun(ctx, run, tx, ty, st);
+    });
+
+    // 继续指示符 ▼
+    if (text) drawIndicator(ctx, boxX + boxW - 13, boxY + boxH - 8, st.indicator || st.text);
+
+    // 角色名标签
+    if (name) {
+      ctx.font = FS + 'px ' + FONT_FAMILY + ', sans-serif'; // drawBox 不改字体，保险起见重设
+      const nameW = Math.ceil(ctx.measureText(name).width) + 16;
+      const nameX = boxX + 6;
+      drawBox(ctx, nameX, 0, nameW, NAME_H, st);
+      if (st.shadow) { ctx.fillStyle = st.shadow; ctx.fillText(name, nameX + 9, 6); }
+      ctx.fillStyle = st.name;
+      ctx.fillText(name, nameX + 8, 5);
+    }
+
+    return { canvas: off, scale };
+  }
+}
+
+/* ---------- 主渲染 ---------- */
+let renderQueued = false;
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  const run = () => { renderQueued = false; render(); };
+  // 页面不可见时 rAF 不会执行，退回 setTimeout 保证渲染不丢
+  if (document.hidden) setTimeout(run, 0);
+  else requestAnimationFrame(run);
+}
+
+function render() {
+  if (!state.img) return;
+  const W = state.img.naturalWidth, H = state.img.naturalHeight;
+  const st = STYLES[styleSelect.value];
+  const ov = buildOverlay(W, H);
+
+  // 向下偏移：把对话框整块往下平移，超出原图的部分向下扩展画布
+  let extend = 0, dh = 0;
+  if (ov) {
+    dh = ov.canvas.height * ov.scale;
+    extend = Math.round(dh * (posSlider.value / 100));
+  }
+
+  canvas.width = W;
+  canvas.height = H + extend;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  if (extend > 0) {
+    ctx.fillStyle = st.outline; // 扩展区底色与框体描边同色系
+    ctx.fillRect(0, H, W, extend);
+  }
+  ctx.drawImage(state.img, 0, 0);
+
+  if (ov) {
+    const dw = ov.canvas.width * ov.scale;
+    ctx.drawImage(ov.canvas, Math.floor((W - dw) / 2), H - dh + extend, dw, dh);
+  }
+  sizeCaption.textContent = '输出尺寸 ' + canvas.width + ' × ' + canvas.height + ' px' +
+    (extend > 0 ? '（原图下方扩展了 ' + extend + ' px）' : '（与原图一致）');
+}
+
+/* ---------- 图片载入 ---------- */
+function setImage(img, label) {
+  state.img = img;
+  emptyHint.style.display = 'none';
+  canvas.style.display = 'block';
+  sizeCaption.style.display = 'block';
+  downloadBtn.disabled = false;
+  filenameEl.textContent = label || '';
+  // 用当前文本触发字体（含所需字形）加载，加载完成后会自动重绘
+  document.fonts.load('12px ' + FONT_FAMILY, textInput.value + nameInput.value).then(scheduleRender);
+  scheduleRender();
+}
+
+function loadFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => { URL.revokeObjectURL(url); setImage(img, file.name); };
+  img.onerror = () => { URL.revokeObjectURL(url); alert('无法读取这张图片，请换一张试试。'); };
+  img.src = url;
+}
+
+/* ---------- 内置示例图（低分辨率绘制后最近邻放大，像素风夕阳） ---------- */
+function makeSampleImage() {
+  const c = document.createElement('canvas');
+  c.width = 240; c.height = 160;
+  const x = c.getContext('2d');
+
+  const sky = x.createLinearGradient(0, 0, 0, 112);
+  sky.addColorStop(0, '#1a2a6c');
+  sky.addColorStop(0.55, '#9b59b6');
+  sky.addColorStop(1, '#f5a860');
+  x.fillStyle = sky;
+  x.fillRect(0, 0, 240, 112);
+
+  // 星星（固定伪随机）
+  x.fillStyle = '#fff8e0';
+  let seed = 7;
+  for (let i = 0; i < 26; i++) {
+    seed = (seed * 16807) % 2147483647;
+    const sx = seed % 240;
+    seed = (seed * 16807) % 2147483647;
+    const sy = seed % 52;
+    x.fillRect(sx, sy, 1, 1);
+  }
+
+  // 太阳
+  x.fillStyle = '#ffd54a';
+  x.beginPath();
+  x.arc(172, 88, 16, 0, Math.PI * 2);
+  x.fill();
+
+  // 远山与近山
+  x.fillStyle = '#3d2a5e';
+  x.beginPath();
+  x.moveTo(0, 112); x.lineTo(46, 62); x.lineTo(96, 112);
+  x.closePath(); x.fill();
+  x.beginPath();
+  x.moveTo(70, 112); x.lineTo(130, 50); x.lineTo(196, 112);
+  x.closePath(); x.fill();
+  x.fillStyle = '#2a1b45';
+  x.beginPath();
+  x.moveTo(120, 112); x.lineTo(190, 68); x.lineTo(250, 112);
+  x.closePath(); x.fill();
+
+  // 地面
+  x.fillStyle = '#1c1233';
+  x.fillRect(0, 112, 240, 48);
+  x.fillStyle = '#241a40';
+  for (let i = 0; i < 240; i += 8) x.fillRect(i, 112, 4, 2);
+
+  // 放大到 960×640（最近邻，保持像素块）
+  const big = document.createElement('canvas');
+  big.width = 960; big.height = 640;
+  const bx = big.getContext('2d');
+  bx.imageSmoothingEnabled = false;
+  bx.drawImage(c, 0, 0, 960, 640);
+
+  const img = new Image();
+  img.onload = () => setImage(img, '示例图片（像素夕阳）');
+  img.src = big.toDataURL();
+}
+
+/* ---------- 事件绑定 ---------- */
+dropZone.addEventListener('click', () => fileInput.click());
+sampleBtn.addEventListener('click', (e) => { e.stopPropagation(); makeSampleImage(); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  loadFile(e.dataTransfer.files[0]);
+});
+
+document.addEventListener('paste', (e) => {
+  for (const item of e.clipboardData.items) {
+    if (item.type.startsWith('image/')) { loadFile(item.getAsFile()); break; }
+  }
+});
+
+[nameInput, textInput].forEach(el => el.addEventListener('input', () => {
+  document.fonts.load('12px ' + FONT_FAMILY, textInput.value + nameInput.value);
+  scheduleRender();
+}));
+[styleSelect, sizeSelect].forEach(el => el.addEventListener('change', scheduleRender));
+
+function updatePosUI() {
+  const v = +posSlider.value;
+  posValue.textContent = v + '%';
+  posSelect.value = v === 0 ? 'overlay' : (v === 100 ? 'below' : 'custom');
+  if (cyclerSyncs['pos-select']) cyclerSyncs['pos-select']();
+}
+posSelect.addEventListener('change', () => {
+  if (posSelect.value === 'overlay') posSlider.value = 0;
+  else if (posSelect.value === 'below') posSlider.value = 100;
+  updatePosUI();
+  scheduleRender();
+});
+posSlider.addEventListener('input', () => { updatePosUI(); scheduleRender(); });
+
+// 字体（或其子集）加载完成后重绘，避免用回退字体测量/渲染
+document.fonts.addEventListener('loadingdone', scheduleRender);
+document.fonts.ready.then(scheduleRender);
+
+downloadBtn.addEventListener('click', () => {
+  canvas.toBlob((blob) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rpg-dialog.png';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }, 'image/png');
+});
+
+/* ---------- 文字特效按钮：切换式逻辑 ----------
+   选区落在已有标记内 → 直接在该标记上加/减样式（同样式再点一次即取消）；
+   部分选中标记内容 → 拆成三段，只给选中部分改样式；
+   纯文本 → 新建标记并选中内容，方便连续点按钮叠加。 */
+function toggleChars(existing, tag) {
+  const set = new Set(existing);
+  if (set.has(tag)) set.delete(tag); else set.add(tag);
+  return [...set].join('');
+}
+
+function applyFx(tag) {
+  const v = textInput.value;
+  const s = textInput.selectionStart, e = textInput.selectionEnd;
+
+  // 寻找包含选区的已有标记（整体选中标记本身也算）
+  let m, host = null;
+  FX_RE.lastIndex = 0;
+  while ((m = FX_RE.exec(v))) {
+    const mStart = m.index, mEnd = m.index + m[0].length;
+    const cStart = mStart + m[1].length + 2;
+    const cEnd = cStart + m[2].length;
+    if ((s === mStart && e === mEnd) || (s >= cStart && e <= cEnd)) {
+      host = { mStart, mEnd, cStart, cEnd, styles: m[1], content: m[2] };
+      break;
+    }
+  }
+
+  let out, selStart, selLen;
+  const wrap = (txt, chars) => txt ? (chars ? '[' + chars + ':' + txt + ']' : txt) : '';
+
+  if (host) {
+    const whole = (s === host.mStart && e === host.mEnd) ||
+                  (s === host.cStart && e === host.cEnd) ||
+                  s === e;
+    if (whole) {
+      // 整体切换（选中整个标记 / 整段内容 / 光标停在内容里）
+      const chars = toggleChars(host.styles, tag);
+      const rep = wrap(host.content, chars);
+      out = v.slice(0, host.mStart) + rep + v.slice(host.mEnd);
+      selStart = host.mStart + (chars ? chars.length + 2 : 0);
+      selLen = host.content.length;
+    } else {
+      // 部分选中：左右保持原样式，中段切换
+      const L = host.content.slice(0, s - host.cStart);
+      const M = host.content.slice(s - host.cStart, e - host.cStart);
+      const R = host.content.slice(e - host.cStart);
+      const midChars = toggleChars(host.styles, tag);
+      const left = wrap(L, host.styles);
+      out = v.slice(0, host.mStart) + left + wrap(M, midChars) + wrap(R, host.styles) + v.slice(host.mEnd);
+      selStart = host.mStart + left.length + (midChars ? midChars.length + 2 : 0);
+      selLen = M.length;
+    }
+  } else {
+    // 纯文本：新建标记
+    const sel = v.slice(s, e) || '文字';
+    out = v.slice(0, s) + '[' + tag + ':' + sel + ']' + v.slice(e);
+    selStart = s + tag.length + 2;
+    selLen = sel.length;
+  }
+
+  textInput.value = out;
+  textInput.focus();
+  textInput.setSelectionRange(selStart, selStart + selLen);
+  textInput.dispatchEvent(new Event('input'));
+}
+
+document.querySelectorAll('.fx-btn').forEach(btn => {
+  btn.addEventListener('click', () => applyFx(btn.dataset.fx));
+});
+
+/* ---------- 界面主题切换（记住上次选择） ---------- */
+const uiThemeSelect = document.getElementById('ui-theme-select');
+uiThemeSelect.addEventListener('change', () => {
+  document.body.dataset.theme = uiThemeSelect.value;
+  try { localStorage.setItem('pixel-dialog-ui-theme', uiThemeSelect.value); } catch (e) {}
+});
+try {
+  const savedTheme = localStorage.getItem('pixel-dialog-ui-theme');
+  if (savedTheme && uiThemeSelect.querySelector('option[value="' + savedTheme + '"]')) {
+    uiThemeSelect.value = savedTheme;
+    document.body.dataset.theme = savedTheme;
+  }
+} catch (e) {}
+
+/* ---------- ◀ ▶ 循环选择器（背后驱动隐藏的原生 select） ---------- */
+const cyclerSyncs = {};
+document.querySelectorAll('.cycler').forEach(cyc => {
+  const sel = document.getElementById(cyc.dataset.for);
+  const label = cyc.querySelector('.cyc-label');
+  const sync = () => { label.textContent = sel.options[sel.selectedIndex].text; };
+  cyclerSyncs[sel.id] = sync;
+  cyc.querySelectorAll('.cyc-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const n = sel.options.length;
+      sel.selectedIndex = (sel.selectedIndex + Number(btn.dataset.dir) + n) % n;
+      sel.dispatchEvent(new Event('change'));
+      sync();
+    });
+  });
+  sync();
+});
+
+/* ---------- 实例画廊 ---------- */
+const GALLERY_DIR = 'Example Pics/';
+const GALLERY_FILES = [
+  '都柏林', '公交时刻表', '黑教堂', '卡舍尔岩', '马修神父雕像', '詹姆斯乔伊斯',
+  '海鸥', '一扇窗户', '巧克力', '纸巾', '沐浴露', '维生素片',
+];
+const galleryUrl = (name) => encodeURI(GALLERY_DIR + name + '.png');
+
+const galleryGrid = document.getElementById('gallery-grid');
+const galleryItems = [];
+
+GALLERY_FILES.forEach((name) => {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'gallery-card';
+  card.setAttribute('aria-label', '查看示例：' + name);
+
+  const img = document.createElement('img');
+  img.loading = 'lazy';
+  img.decoding = 'async';
+  img.alt = '';
+  img.src = galleryUrl(name);
+  img.addEventListener('error', () => {
+    const i = galleryItems.findIndex(it => it.card === card);
+    if (i >= 0) galleryItems.splice(i, 1);
+    card.remove();
+  });
+
+  const caption = document.createElement('span');
+  caption.className = 'g-name';
+  caption.textContent = name;
+
+  card.append(img, caption);
+  card.addEventListener('click', () => {
+    openLightbox(galleryItems.findIndex(it => it.card === card), card);
+  });
+  galleryGrid.append(card);
+  galleryItems.push({ name, card });
+});
+
+/* ---------- 画廊展开 / 收起 ---------- */
+const galleryWindow = document.getElementById('gallery-window');
+const galleryToggle = document.getElementById('gallery-toggle');
+const galleryBody   = document.getElementById('gallery-body');
+const galleryLabel  = galleryToggle.querySelector('.tg-label');
+const GALLERY_STORE = 'pixel-dialog-gallery-open';
+
+function setGalleryOpen(open, persist) {
+  galleryWindow.classList.toggle('collapsed', !open);
+  galleryToggle.setAttribute('aria-expanded', String(open));
+  galleryLabel.textContent = open ? '收起' : '展开';
+  galleryBody.toggleAttribute('inert', !open);
+  if (persist) {
+    try { localStorage.setItem(GALLERY_STORE, open ? '1' : '0'); } catch (e) {}
+  }
+}
+
+let galleryOpen = true;
+try { galleryOpen = localStorage.getItem(GALLERY_STORE) !== '0'; } catch (e) {}
+setGalleryOpen(galleryOpen, false);
+
+galleryToggle.addEventListener('click', () => {
+  setGalleryOpen(galleryWindow.classList.contains('collapsed'), true);
+});
+
+/* ---------- 大图查看 ---------- */
+const lightbox   = document.getElementById('lightbox');
+const lbImg      = document.getElementById('lb-img');
+const lbName     = document.getElementById('lb-name');
+const lbCount    = document.getElementById('lb-count');
+const lbClose    = document.getElementById('lb-close');
+const lbFocus    = [document.getElementById('lb-prev'), document.getElementById('lb-next'), lbClose];
+let lbIndex = 0;
+let lbTrigger = null;
+
+function showLightbox(i) {
+  if (!galleryItems.length) return;
+  lbIndex = ((i % galleryItems.length) + galleryItems.length) % galleryItems.length;
+  const item = galleryItems[lbIndex];
+  lbImg.src = galleryUrl(item.name);
+  lbImg.alt = item.name;
+  lbName.textContent = item.name;
+  lbCount.textContent = (lbIndex + 1) + ' / ' + galleryItems.length;
+}
+
+function openLightbox(i, trigger) {
+  showLightbox(i);
+  lbTrigger = trigger || null;
+  lightbox.hidden = false;
+  document.body.classList.add('lb-open');
+  lbClose.focus();
+}
+
+function closeLightbox() {
+  lightbox.hidden = true;
+  document.body.classList.remove('lb-open');
+  lbImg.removeAttribute('src');
+  lbImg.alt = '';
+  if (lbTrigger && document.contains(lbTrigger)) lbTrigger.focus();
+  lbTrigger = null;
+}
+
+function stepLightbox(dir) {
+  showLightbox(lbIndex + dir);
+}
+
+document.getElementById('lb-prev').addEventListener('click', () => stepLightbox(-1));
+document.getElementById('lb-next').addEventListener('click', () => stepLightbox(1));
+lbClose.addEventListener('click', closeLightbox);
+document.getElementById('lb-backdrop').addEventListener('click', closeLightbox);
+
+document.addEventListener('keydown', (e) => {
+  if (lightbox.hidden) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); stepLightbox(-1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); stepLightbox(1); }
+  else if (e.key === 'Tab') {
+    // 焦点留在查看器内
+    e.preventDefault();
+    const at = lbFocus.indexOf(document.activeElement);
+    const next = (at + (e.shiftKey ? -1 : 1) + lbFocus.length) % lbFocus.length;
+    lbFocus[next].focus();
+  }
+});
+
+// 供自动化测试使用
+window.__test = { setImage, makeSampleImage };
+</script>
+</body>
+</html>
